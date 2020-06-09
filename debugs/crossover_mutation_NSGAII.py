@@ -66,26 +66,39 @@ def crossover(bits_AP, point_cross, p1_ox_cross, p2_ox_cross, genes1, genes2) :
     #separa os elementos que serao reposicionados
     aux_new = np.setdiff1d(genes2_pos, aux_keep, assume_unique=True)
     vet_offspring1 = np.array([],dtype=np.int64)
+    
+    vet_offspring1 = np.append(vet_offspring1,aux_new[:p1_ox_cross])
+    vet_offspring1 = np.append(vet_offspring1,aux_keep)
+    vet_offspring1 = np.append(vet_offspring1,aux_new[p1_ox_cross:])    
+    
+    print(vet_offspring1)
+    
+    '''
     for i in aux_new :
         if len(vet_offspring1) == p1_ox_cross :
             vet_offspring1 = np.append(vet_offspring1, aux_keep)
             vet_offspring1 = np.append(vet_offspring1,i)
         else :
             vet_offspring1 = np.append(vet_offspring1,i)
-
+    '''
     #offspring 2 
     aux_keep = genes2_pos[p1_ox_cross:p2_ox_cross]
     
     #separa os elementos que serao reposicionados
     aux_new = np.setdiff1d(genes1_pos, aux_keep,assume_unique=True)
     vet_offspring2 = np.array([],dtype=np.int64)
+    
+    vet_offspring2 = np.append(vet_offspring2,aux_new[:p1_ox_cross])
+    vet_offspring2 = np.append(vet_offspring2,aux_keep)
+    vet_offspring2 = np.append(vet_offspring2,aux_new[p1_ox_cross:])
+    '''
     for i in aux_new :
         if len(vet_offspring2) == p1_ox_cross :
             vet_offspring2 = np.append(vet_offspring2, aux_keep)
             vet_offspring2 = np.append(vet_offspring2,i)
         else :
             vet_offspring2 = np.append(vet_offspring2,i)
-    
+    '''
     #remontagem dos cromossomos
     offspring1 = np.concatenate((offspring1, vet_offspring1))
     offspring2 = np.concatenate((offspring2, vet_offspring2))
@@ -98,14 +111,13 @@ gene = []
 for i in range(0,2) :
     gene.append(gera_cromossomo(5,195000) )
 
-print(gene)
 
 
 filhos = []
 #gene.append( np.array([1,0,1,1,0,1,2,3,4,5],dtype=np.int64) )
 #gene.append( np.array([0,0,1,0,1,5,4,3,2,1],dtype=np.int64) )
 
-filhos += crossover(5,3,60000,130000,gene[0],gene[1])
+filhos += crossover(5,2,80000,130000,gene[0],gene[1])
 
 print(gene[0])
 print(gene[1])
