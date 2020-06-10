@@ -2,114 +2,136 @@ import numpy as np
 import math
 import copy
 from numba import jit, int32, int64
-
-@jit
-def contains(x, list) :
-    
-    for i in list :
-        if x == i :
-            return True
-    return False
-
-def separate_ox_crossover(keep_vector, old_vector) :
-
-    return 
-    
-def gera_cromossomo(max_ap, max_pos):
+  
+def gera_cromossomo(bits_ap, max_pos):
 
     ''' Gera cromossomos de forma aleatoria de acordo com as entradas.
-        max_ap = quantidade de bits para representar a quantidade de ap alocada
+        bits_ap = quantidade de bits para representar a quantidade de ap alocada
         max_pos = quantidade de pontos na matriz que representa as posicoes para alocar ap
     '''
 
     #cria o vetor de quantidade de access point
-    genes = np.array((), np.int64)
-    for i in range(max_ap) :
+    gene = np.array((), np.int64)
+    for i in range(bits_ap) :
         aux = np.random.normal(0.5, 0.2, 1)
         if (aux > 0.5) :
-            genes = np.append(genes, 1)
+            gene = np.append(gene, 1)
         else : 
-            genes = np.append(genes, 0)
+            gene = np.append(gene, 0)
 
-    #cria vetor de permutacao das posicoes dos access point e adiciona no genes
-    genes = np.concatenate((genes,np.random.permutation(max_pos)))
+    #cria vetor de permutacao das posicoes dos access point e adiciona no gene
+    gene = np.concatenate((gene,np.random.permutation(max_pos)))
 
-    return genes
+    return gene
 
-def crossover(bits_AP, point_cross, p1_ox_cross, p2_ox_cross, genes1, genes2) :
+def crossover(bits_AP, point_cross, p1_ox_cross, p2_ox_cross, gene1, gene2) :
     
     '''Realiza o cruzamento de dois cromossomos
-    bits_AP = quantidade de bits que representa a quantidade de ap
-    point_cross = ponto onde ocorrera o crossover de 1 ponto na quantidade de ap
-    p1_ox_cross = primeiro ponto do crossover ox aplicado na permutacao das posicoes
-    p2_ox_cross = segundo ponto do crossover ox aplicado na permutacao das posicoes
-    genes1 = cromossomo do primeiro genitor
-    genes2 = cromossomo do segundo genitor
+        bits_AP = quantidade de bits que representa a quantidade de ap
+        point_cross = ponto onde ocorrera o crossover de 1 ponto na quantidade de ap
+        p1_ox_cross = primeiro ponto do crossover ox aplicado na permutacao das posicoes
+        p2_ox_cross = segundo ponto do crossover ox aplicado na permutacao das posicoes
+        gene1 = cromossomo do primeiro genitor
+        gene2 = cromossomo do segundo genitor
     '''
 
     #pega apenas os bits de quantidade de access point
-    genes1_ap = genes1[:bits_AP]
-    genes2_ap = genes2[:bits_AP]
+    gene1_ap = gene1[:bits_AP]
+    gene2_ap = gene2[:bits_AP]
     
     #pega o vetor de permutacoes das posicoes
-    genes1_pos = genes1[bits_AP:]
-    genes2_pos = genes2[bits_AP:]
+    gene1_pos = gene1[bits_AP:]
+    gene2_pos = gene2[bits_AP:]
 
     #crossover de um ponto na quantidade de access point
-    offspring1 = np.concatenate((genes1_ap[:point_cross],genes2_ap[point_cross:]))
-    offspring2 = np.concatenate((genes2_ap[:point_cross],genes1_ap[point_cross:]))
+    offspring1 = np.concatenate((gene1_ap[:point_cross],gene2_ap[point_cross:]))
+    offspring2 = np.concatenate((gene2_ap[:point_cross],gene1_ap[point_cross:]))
 
     #crossover OX no vetor de permutacoes
-    #offspring 1 
-    aux_keep = genes1_pos[p1_ox_cross:p2_ox_cross]
+    #offspring 1 - pega a parte do vetor que continuara imutavel
+    aux_keep = gene1_pos[p1_ox_cross:p2_ox_cross]
 
     #separa os elementos que serao reposicionados
-    aux_new = np.setdiff1d(genes2_pos, aux_keep, assume_unique=True)
-    vet_offspring1 = np.array([],dtype=np.int64)
+    aux_new = np.setdiff1d(gene2_pos, aux_keep, assume_unique=True)
     
+    #cria novo vetor reposicionando as posicoes que nao serao mantidas
+    vet_offspring1 = np.array([],dtype=np.int64)
     vet_offspring1 = np.append(vet_offspring1,aux_new[:p1_ox_cross])
     vet_offspring1 = np.append(vet_offspring1,aux_keep)
     vet_offspring1 = np.append(vet_offspring1,aux_new[p1_ox_cross:])    
     
-    print(vet_offspring1)
-    
-    '''
-    for i in aux_new :
-        if len(vet_offspring1) == p1_ox_cross :
-            vet_offspring1 = np.append(vet_offspring1, aux_keep)
-            vet_offspring1 = np.append(vet_offspring1,i)
-        else :
-            vet_offspring1 = np.append(vet_offspring1,i)
-    '''
-    #offspring 2 
-    aux_keep = genes2_pos[p1_ox_cross:p2_ox_cross]
+    #offspring 2 - pega a parte do vetor que continuara imutavel
+    aux_keep = gene2_pos[p1_ox_cross:p2_ox_cross]
     
     #separa os elementos que serao reposicionados
-    aux_new = np.setdiff1d(genes1_pos, aux_keep,assume_unique=True)
-    vet_offspring2 = np.array([],dtype=np.int64)
+    aux_new = np.setdiff1d(gene1_pos, aux_keep,assume_unique=True)
     
+    #cria novo vetor reposicionando as posicoes que nao serao mantidas
+    vet_offspring2 = np.array([],dtype=np.int64)
     vet_offspring2 = np.append(vet_offspring2,aux_new[:p1_ox_cross])
     vet_offspring2 = np.append(vet_offspring2,aux_keep)
     vet_offspring2 = np.append(vet_offspring2,aux_new[p1_ox_cross:])
-    '''
-    for i in aux_new :
-        if len(vet_offspring2) == p1_ox_cross :
-            vet_offspring2 = np.append(vet_offspring2, aux_keep)
-            vet_offspring2 = np.append(vet_offspring2,i)
-        else :
-            vet_offspring2 = np.append(vet_offspring2,i)
-    '''
+    
     #remontagem dos cromossomos
     offspring1 = np.concatenate((offspring1, vet_offspring1))
     offspring2 = np.concatenate((offspring2, vet_offspring2))
 
     return [offspring1, offspring2]
 
+def reciprocal_exchange_mutation(bits_ap, first_pt, second_pt, gene) :
+    
+    '''Realiza a mutacao fazendo switch entre duas posicoes do vetor de permutacao
+        first_pt = primeira posicao do switch
+        second_pt = segunda posicao do switch
+        gene = solucao que recebera a mutacao
+    '''
 
+    aux = gene[bits_ap+first_pt]
+    gene[bits_ap+first_pt] = gene[bits_ap+second_pt]
+    gene[bits_ap+second_pt] = aux 
+    
+    return gene
+
+def displacement_mutation(bits_ap, position, lenght, offset, gene):
+    
+    '''Desloca algumas posicoes para a diretira de acordo com o offset
+        position = posicao onde comeca o deslocamento
+        lenght = quantidade de posicoes para deslocar
+        offset = tamanho do deslocamento
+    '''
+    
+    gene_aux = gene[bits_ap:]
+
+    gene_new = np.array([], dtype=np.int64)
+    gene_new = np.append(gene_new, gene[:bits_ap])
+    gene_new = np.append(gene_new, gene_aux[:position])
+    gene_new = np.append(gene_new, gene_aux[position+lenght:position+lenght+offset])
+    gene_new = np.append(gene_new, gene_aux[position:position+lenght])
+    gene_new = np.append(gene_new, gene_aux[position+lenght+offset:])
+    
+    print(gene_new[110004])
+    
+
+def bit_flip_mutation():
+    pass
+
+
+#genes = np.array([0,1,1,1,2,3,4,5], np.int64)
+#genes = [0,1,1,1,2,3,4,5]
+#genes = []
+#genes.append(gera_cromossomo(5,195000))
+
+#reciprocal_exchange_mutation(3,1,3,genes)
+#displacement_mutation(5,80000,20000,10000, genes[0])
+
+print(genes)
+
+
+'''
 gene = []
 
-for i in range(0,2) :
-    gene.append(gera_cromossomo(5,195000) )
+for i in range(0,100) :
+    gene.append(gera_cromossomo(5,195000))
 
 
 
@@ -117,14 +139,17 @@ filhos = []
 #gene.append( np.array([1,0,1,1,0,1,2,3,4,5],dtype=np.int64) )
 #gene.append( np.array([0,0,1,0,1,5,4,3,2,1],dtype=np.int64) )
 
-filhos += crossover(5,2,80000,130000,gene[0],gene[1])
+for i in range(0,75) :
+    filhos += crossover(5,2,80000,130000,gene[i],gene[np.random.randint(49)])
+
 
 print(gene[0])
 print(gene[1])
 print()    
 print(filhos[0])
-print(filhos[1])
 
+print(filhos[1])
+'''
 
 '''
 
@@ -164,6 +189,8 @@ cromossomoNP2[1] = 1
 
 vet1 = np.array([3,5,4,2,1],dtype=np.int32)
 vet2 = np.array([2,4,3,1,5],dtype=np.int32)
+
+[0,1,1,3,5,4,2,1]
 
 print(vet1)
 print(cromossomoNP)
