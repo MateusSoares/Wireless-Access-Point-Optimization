@@ -85,12 +85,12 @@ def reciprocal_exchange_mutation(bits_ap, first_pt, second_pt, gene) :
         second_pt = segunda posicao do switch
         gene = solucao que recebera a mutacao
     '''
-
-    aux = gene[bits_ap+first_pt]
-    gene[bits_ap+first_pt] = gene[bits_ap+second_pt]
-    gene[bits_ap+second_pt] = aux 
+    gene_new = np.array(gene, dtype=np.int64)
+    aux = gene_new[bits_ap+first_pt]
+    gene_new[bits_ap+first_pt] = gene_new[bits_ap+second_pt]
+    gene_new[bits_ap+second_pt] = aux 
     
-    return gene
+    return gene_new
 
 def displacement_mutation(bits_ap, position, lenght, offset, gene):
     
@@ -109,21 +109,33 @@ def displacement_mutation(bits_ap, position, lenght, offset, gene):
     gene_new = np.append(gene_new, gene_aux[position:position+lenght])
     gene_new = np.append(gene_new, gene_aux[position+lenght+offset:])
     
-    print(gene_new[110004])
+    return gene_new
     
 
-def bit_flip_mutation():
-    pass
+def bit_flip_mutation(bits_ap, probality, gene):
+    
+    '''Realiza a inversao de bits por bit de acordo com a probabilidade
+        probality = probabilidade de realizar a inversão
+    '''
+    
+    gene_new = np.array(gene[:bits_ap], dtype=np.int64)
+    for i in range(0,len(gene_new)) :
+        if ( np.random.random() <= probality) :
+            gene_new[i] = (gene_new[i] * -1 ) + 1
+
+    gene_new = np.append(gene_new, gene[bits_ap:])
+
+    return gene_new
 
 
-#genes = np.array([0,1,1,1,2,3,4,5], np.int64)
+genes = np.array([0,1,1,1,2,3,4,5], np.int64)
 #genes = [0,1,1,1,2,3,4,5]
 #genes = []
 #genes.append(gera_cromossomo(5,195000))
 
 #reciprocal_exchange_mutation(3,1,3,genes)
 #displacement_mutation(5,80000,20000,10000, genes[0])
-
+print(bit_flip_mutation(3,0.2,genes) )
 print(genes)
 
 
