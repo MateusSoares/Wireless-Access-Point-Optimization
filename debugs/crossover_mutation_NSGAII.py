@@ -2,7 +2,7 @@ import numpy as np
 import math
 import copy
 from numba import jit, int32, int64
-  
+
 def gera_cromossomo(bits_ap, max_pos):
 
     ''' Gera cromossomos de forma aleatoria de acordo com as entradas.
@@ -23,6 +23,21 @@ def gera_cromossomo(bits_ap, max_pos):
     gene = np.concatenate((gene,np.random.permutation(max_pos)))
 
     return gene
+
+def bits_to_integer(bits_ap, gene) :
+
+    '''Funcao que pega os bits de quantidade de ap e retorna esse valor do tipo inteiro
+        gene = codificacao do cromossomo que representa uma solucao
+    '''
+
+    value = 0
+    pos = 0
+
+    for i in range(bits_ap-1, -1, -1) :
+        value += (2 ** pos) * gene[i]
+        pos += 1
+
+    return value
 
 def crossover(bits_AP, point_cross, p1_ox_cross, p2_ox_cross, gene1, gene2) :
     
@@ -127,7 +142,32 @@ def bit_flip_mutation(bits_ap, probality, gene):
 
     return gene_new
 
+def function_ap(bits_ap, gene) :
 
+    '''Funcao objetivo que avalia a quantidade de ap alocados
+        1 / N^2
+    '''
+
+    return (1 / bits_to_integer(bits_ap, gene) ** 2 ) 
+
+def points_of_ap(bits_ap, width, gene) :
+
+    '''Funcao que retorna as posicoes onde devem ser posicionados os aps
+        width = largura da matriz que representa o ambiente
+    '''
+
+    size = bits_to_integer(bits_ap, gene)
+    aps = []
+
+    for i in range(bits_ap, bits_ap+size) :
+        ap = [ gene[i] // width , gene[i] % width ]
+        aps.append(ap)
+
+    return aps
+
+print(points_of_ap(3,3,[0,1,1,2,4,6,7,9,8,1,3,5]))
+
+'''
 genes = np.array([0,1,1,1,2,3,4,5], np.int64)
 #genes = [0,1,1,1,2,3,4,5]
 #genes = []
@@ -139,7 +179,7 @@ print(bit_flip_mutation(3,0.2,genes) )
 print(genes)
 
 
-'''
+
 gene = []
 
 for i in range(0,100) :
