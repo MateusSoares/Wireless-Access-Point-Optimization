@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pygame
 from colour import Color
-from math import sqrt, log10, exp
+from math import sqrt, log10, exp, log, ceil
 from numba import cuda, jit
 
 from utils.propagations_models import five_par_log_model
@@ -21,7 +21,6 @@ Point Informado.
 """
 
 
-@jit
 def read_walls_from_dxf(dxf_file_path, dxf_scale):
     """
     Método responsável por ler um arquivo DXF e filtrar pela camada ARQ as paredes do ambiente.
@@ -328,7 +327,7 @@ def simulate_kernel(ap_x, ap_y, matrix_results, floor_plan_model):
 propagation_model_gpu = cuda.jit(device=True)(propagation_model)
 
 
-@jit
+@jit(forceobj=True)
 def simulate_cpu(ap_x, ap_y, matrix_results, floor_plan_model):
     """
     Método responsável por realizar a simulação do ambiente de acordo com a posição do Access Point.
@@ -408,8 +407,7 @@ def disturb_solution(solution):
 
     return get_point_in_circle(solution[0], solution[1], DISTURBANCE_RADIUS)
 
-
-@jit
+@jit(forceobj=True)
 def evaluate_array(s_array, size):
     propagation_matrices = []
     for i in range(size):
@@ -421,10 +419,8 @@ def evaluate_array(s_array, size):
     # penaliza APs muito proximos (CUIDADO: junto com FO % de cobertura prender o SA)
     # overlaid_matrix = solution_overlap_div_dbm(propagation_matrices, size)
 
-    return objective_function(overlaid_matrix), propagation_matrices
+    return (objective_function(overlaid_matrix), propagation_matrices)
 
-
-@jit
 def solution_overlap_max(propagation_array, size):
     max_value = propagation_array[0]
     for i in range(1, size):
@@ -460,8 +456,7 @@ def solution_overlap_div_dbm(propagation_array, size):
 
     return sub
 
-
-@jit
+@jit(forceobj=True)
 def simulates_propagation_cpu(ap_x, ap_y):
     """
     Método responsável por realizar a simulação do ambiente de acordo com a posição do Access Point.
@@ -474,8 +469,7 @@ def simulates_propagation_cpu(ap_x, ap_y):
 
     return simulate_cpu(ap_x, ap_y, matrix_results, floor_plan)
 
-
-@jit
+@jit(forceobj=True)
 def simulates_propagation_gpu(point_x, point_y):
     """
     Valor da função objetivo correspondente á configuração x;
@@ -496,8 +490,6 @@ def simulates_propagation_gpu(point_x, point_y):
 
     return g_matrix
 
-
-@jit
 def simulates_propagation(point_x, point_y):
     """
     Método resposável por realizar a simulação da propagação de acordo com o ambiente escolhido (CPU ou GPU)
@@ -786,7 +778,7 @@ def get_color_of_interval(x, max_value=-30, min_value=-100):
 
     return color
 
-
+@jit(forceobj=True)
 def show_solution(s_array, py_game_display_surf_value):
     propagation_matrices = []
 
@@ -942,6 +934,186 @@ def generate_summary(s_array):
         plt.xlabel('Solucao candidata')
         plt.show()
 
+def gera_cromossomo(bits_ap, max_pos):
+
+    ''' Gera cromossomos de forma aleatoria de acordo com as entradas.
+        bits_ap = quantidade de bits para representar a quantidade de ap alocada
+        max_pos = quantidade de pontos na matriz que representa as posicoes para alocar ap
+    '''
+
+    #cria o vetor de quantidade de access point
+    gene = np.array((), np.int64)
+    for i in range(bits_ap) :
+        aux = np.random.normal(0.5, 0.2, 1)
+        if (aux > 0.5) :
+            gene = np.append(gene, 1)
+        else : 
+            gene = np.append(gene, 0)
+
+    #cria vetor de permutacao das posicoes dos access point e adiciona no gene
+    gene = np.concatenate((gene,np.random.permutation(max_pos)))
+
+    #garante pelo menos 1 ponto de acesso
+    gene[bits_ap-1] = 1
+    
+    return gene
+
+def bits_to_integer(bits_ap, gene) :
+
+    '''Funcao que pega os bits de quantidade de ap e retorna esse valor do tipo inteiro
+        gene = codificacao do cromossomo que representa uma solucao
+    '''
+
+    value = 0
+    pos = 0
+
+    for i in range(bits_ap-1, -1, -1) :
+        value += (2 ** pos) * gene[i]
+        pos += 1
+
+    return value
+
+def crossover(bits_AP, point_cross, p1_ox_cross, p2_ox_cross, gene1, gene2) :
+    
+    '''Realiza o cruzamento de dois cromossomos
+        bits_AP = quantidade de bits que representa a quantidade de ap
+        point_cross = ponto onde ocorrera o crossover de 1 ponto na quantidade de ap
+        p1_ox_cross = primeiro ponto do crossover ox aplicado na permutacao das posicoes
+        p2_ox_cross = segundo ponto do crossover ox aplicado na permutacao das posicoes
+        gene1 = cromossomo do primeiro genitor
+        gene2 = cromossomo do segundo genitor
+    '''
+
+    #pega apenas os bits de quantidade de access point
+    gene1_ap = gene1[:bits_AP]
+    gene2_ap = gene2[:bits_AP]
+    
+    #pega o vetor de permutacoes das posicoes
+    gene1_pos = gene1[bits_AP:]
+    gene2_pos = gene2[bits_AP:]
+
+    #crossover de um ponto na quantidade de access point
+    offspring1 = np.concatenate((gene1_ap[:point_cross],gene2_ap[point_cross:]))
+    offspring2 = np.concatenate((gene2_ap[:point_cross],gene1_ap[point_cross:]))
+
+    #crossover OX no vetor de permutacoes
+    #offspring 1 - pega a parte do vetor que continuara imutavel
+    aux_keep = gene1_pos[p1_ox_cross:p2_ox_cross]
+
+    #separa os elementos que serao reposicionados
+    aux_new = np.setdiff1d(gene2_pos, aux_keep, assume_unique=True)
+    
+    #cria novo vetor reposicionando as posicoes que nao serao mantidas
+    vet_offspring1 = np.array([],dtype=np.int64)
+    vet_offspring1 = np.append(vet_offspring1,aux_new[:p1_ox_cross])
+    vet_offspring1 = np.append(vet_offspring1,aux_keep)
+    vet_offspring1 = np.append(vet_offspring1,aux_new[p1_ox_cross:])    
+    
+    #offspring 2 - pega a parte do vetor que continuara imutavel
+    aux_keep = gene2_pos[p1_ox_cross:p2_ox_cross]
+    
+    #separa os elementos que serao reposicionados
+    aux_new = np.setdiff1d(gene1_pos, aux_keep,assume_unique=True)
+    
+    #cria novo vetor reposicionando as posicoes que nao serao mantidas
+    vet_offspring2 = np.array([],dtype=np.int64)
+    vet_offspring2 = np.append(vet_offspring2,aux_new[:p1_ox_cross])
+    vet_offspring2 = np.append(vet_offspring2,aux_keep)
+    vet_offspring2 = np.append(vet_offspring2,aux_new[p1_ox_cross:])
+    
+    #remontagem dos cromossomos
+    offspring1 = np.concatenate((offspring1, vet_offspring1))
+    offspring2 = np.concatenate((offspring2, vet_offspring2))
+
+    return [offspring1, offspring2]
+
+def reciprocal_exchange_mutation(bits_ap, first_pt, second_pt, gene) :
+    
+    '''Realiza a mutacao fazendo switch entre duas posicoes do vetor de permutacao
+        first_pt = primeira posicao do switch
+        second_pt = segunda posicao do switch
+        gene = solucao que recebera a mutacao
+    '''
+    gene_new = np.array(gene, dtype=np.int64)
+    aux = gene_new[bits_ap+first_pt]
+    gene_new[bits_ap+first_pt] = gene_new[bits_ap+second_pt]
+    gene_new[bits_ap+second_pt] = aux 
+    
+    return gene_new
+
+def displacement_mutation(bits_ap, position, lenght, offset, gene):
+    
+    '''Desloca algumas posicoes para a diretira de acordo com o offset
+        position = posicao onde comeca o deslocamento
+        lenght = quantidade de posicoes para deslocar
+        offset = tamanho do deslocamento
+    '''
+    
+    gene_aux = gene[bits_ap:]
+
+    gene_new = np.array([], dtype=np.int64)
+    gene_new = np.append(gene_new, gene[:bits_ap])
+    gene_new = np.append(gene_new, gene_aux[:position])
+    gene_new = np.append(gene_new, gene_aux[position+lenght:position+lenght+offset])
+    gene_new = np.append(gene_new, gene_aux[position:position+lenght])
+    gene_new = np.append(gene_new, gene_aux[position+lenght+offset:])
+    
+    return gene_new
+    
+
+def bit_flip_mutation(bits_ap, probality, gene):
+    
+    '''Realiza a inversao de bits por bit de acordo com a probabilidade
+        probality = probabilidade de realizar a inversão
+    '''
+    
+    gene_new = np.array(gene[:bits_ap], dtype=np.int64)
+    for i in range(0,len(gene_new)) :
+        if ( np.random.random() <= probality) :
+            gene_new[i] = (gene_new[i] * -1 ) + 1
+
+    gene_new = np.append(gene_new, gene[bits_ap:])
+
+    return gene_new
+
+def function_ap(bits_ap, gene) :
+
+    '''Funcao objetivo que avalia a quantidade de ap alocados
+        1 / N^2
+    '''
+
+    return (1 / bits_to_integer(bits_ap, gene) ** 2 ) 
+
+def points_of_ap(bits_ap, width, gene) :
+
+    '''Funcao que retorna as posicoes onde devem ser posicionados os aps
+        width = largura da matriz que representa o ambiente
+    '''
+
+    size = bits_to_integer(bits_ap, gene)
+    aps = []
+
+    for i in range(bits_ap, bits_ap+size) :
+        ap = [ gene[i] // width , gene[i] % width ]
+        aps.append(ap)
+
+    return aps
+
+def runNSGAII () :
+
+    ''' Inicia a configuracao do NSGA-I
+    '''
+
+    gene = gera_cromossomo(1,WIDTH*HEIGHT)
+    aps_qtd = bits_to_integer(1,gene)
+    aps_pos = points_of_ap(1, HEIGHT, gene)
+    
+    result = evaluate_array(aps_pos, len(aps_pos))
+    print(aps_pos)
+    print(function_ap(1,gene))
+    print(result[0])
+    #show_solution(aps_pos, py_game_display_surf)
+    #input('NSGA-II')
 
 ########################################################################################################################
 #   Main                                                                                                               #
@@ -1021,12 +1193,12 @@ if __name__ == '__main__':
     ##################################################
     #  CONFIGURAÇÕES DO AMBIENTE SIMULADO
 
-    ENVIRONMENT = "GPU"
-    # ENVIRONMENT = "CPU"
+    #ENVIRONMENT = "GPU"
+    ENVIRONMENT = "CPU"
 
     # Tamanho da simulação
-    # SIMULATION_SIZE = 400
-    SIMULATION_SIZE = 600
+    SIMULATION_SIZE = 400
+    #SIMULATION_SIZE = 600
 
     # Ativa / Desativa a animação passo a passo da otimização
     # ANIMATION_STEP_BY_STEP   = True
@@ -1035,7 +1207,7 @@ if __name__ == '__main__':
     # ANIMATION_BEST_PLACES = True
     ANIMATION_BEST_PLACES = False
 
-    ANIMATION_BESTS = True
+    ANIMATION_BESTS = False
     # ANIMATION_BESTS = False
 
     ##################################################
@@ -1113,7 +1285,7 @@ if __name__ == '__main__':
 
     show_configs()
     # test_propagation()
-    run()
+    runNSGAII()
     # fixed_aps([[1., 210.], [300., 225.], [385., 225.], [540, 225]])
     #
     # best_solution = [
@@ -1133,7 +1305,7 @@ if __name__ == '__main__':
 
     # generate_summary([[50, 50]])
 
-    input('\nAperte ESC para fechar a simulação.')
+    #input('\nAperte ESC para fechar a simulação.')
 
     # profile.runctx('run()', globals(), locals(),'tese')
     # cProfile.run(statement='run()', filename='PlacementAPs.cprof')
