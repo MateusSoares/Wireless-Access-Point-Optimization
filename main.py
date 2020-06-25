@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pygame
 from colour import Color
-from math import sqrt, log10, exp, log, ceil
+from math import sqrt, log10, log2, exp, log, ceil
 from numba import cuda, jit
 
 from utils.propagations_models import five_par_log_model
@@ -1101,19 +1101,23 @@ def points_of_ap(bits_ap, width, gene) :
 
 def runNSGAII () :
 
-    ''' Inicia a configuracao do NSGA-I
+    ''' Inicia a configuracao do NSGA-II
     '''
 
-    gene = gera_cromossomo(1,WIDTH*HEIGHT)
-    aps_qtd = bits_to_integer(1,gene)
-    aps_pos = points_of_ap(1, HEIGHT, gene)
+    bits = ceil( log2(num_aps) )
+    
+    gene = gera_cromossomo(bits,WIDTH*HEIGHT)
+    aps_qtd = bits_to_integer(bits,gene)
+    aps_pos = points_of_ap(bits, HEIGHT, gene)
     
     result = evaluate_array(aps_pos, len(aps_pos))
     print(aps_pos)
-    print(function_ap(1,gene))
+    print(function_ap(bits,gene))
     print(result[0])
-    #show_solution(aps_pos, py_game_display_surf)
-    #input('NSGA-II')
+    if ANIMATION_STEP_BY_STEP or ANIMATION_BEST_PLACES or ANIMATION_BESTS:
+        print("\nDesenhando resultado da simulação...")
+        show_solution(aps_pos, py_game_display_surf)
+    input('NSGA-II')
 
 ########################################################################################################################
 #   Main                                                                                                               #
@@ -1193,8 +1197,8 @@ if __name__ == '__main__':
     ##################################################
     #  CONFIGURAÇÕES DO AMBIENTE SIMULADO
 
-    #ENVIRONMENT = "GPU"
-    ENVIRONMENT = "CPU"
+    ENVIRONMENT = "GPU"
+    #ENVIRONMENT = "CPU"
 
     # Tamanho da simulação
     SIMULATION_SIZE = 400
@@ -1207,7 +1211,7 @@ if __name__ == '__main__':
     # ANIMATION_BEST_PLACES = True
     ANIMATION_BEST_PLACES = False
 
-    ANIMATION_BESTS = False
+    ANIMATION_BESTS = True
     # ANIMATION_BESTS = False
 
     ##################################################
