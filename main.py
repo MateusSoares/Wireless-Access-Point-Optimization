@@ -950,11 +950,12 @@ def gera_cromossomo(bits_ap, max_pos):
         else : 
             gene = np.append(gene, 0)
 
+    #garante pelo menos 1 ponto de acesso
+    if max(gene) == 0 :
+        gene[bits_ap-1] = 1
+
     #cria vetor de permutacao das posicoes dos access point e adiciona no gene
     gene = np.concatenate((gene,np.random.permutation(max_pos)))
-
-    #garante pelo menos 1 ponto de acesso
-    gene[bits_ap-1] = 1
     
     return gene
 
@@ -1079,10 +1080,10 @@ def bit_flip_mutation(bits_ap, probality, gene):
 def function_ap(bits_ap, gene) :
 
     '''Funcao objetivo que avalia a quantidade de ap alocados
-        1 / N^2
+        - 1 / N^2
     '''
 
-    return (1 / bits_to_integer(bits_ap, gene) ** 2 ) 
+    return -(1 / bits_to_integer(bits_ap, gene) ** 2 ) 
 
 def points_of_ap(bits_ap, width, gene) :
 
@@ -1099,6 +1100,54 @@ def points_of_ap(bits_ap, width, gene) :
 
     return aps
 
+def fast_non_dominated_sort(function1, function2) :
+
+    '''Funcao que realiza a separacao dos genes nas fronteiras pareto. A dominancia e calculada a partir da minimização das
+        funcoes objetivo.
+    '''
+
+    dominance = [[] for i in range(0,len(function1))]
+    front = [[]]
+    dominators = [0 for i in range(0,len(function1))]
+    rank = [0 for i in range(0,len(function1))]
+
+    #busca a primeira fronteira
+    for f in range(0,len(function1)) :
+        for s in range(0,len(function1)) :
+            if (function1[f] <= function1[s] and function2[f] <= function2[s]) and (function1[f] < function1[s] or function2[f] < function2[s]) :
+                if s not in dominance[f] :
+                    dominance[f].append(s)
+            elif (function1[s] <= function1[f] and function2[s] <= function2[f]) and (function1[s] < function1[f] or function2[s] < function2[f]) :
+                dominators[f] = dominators[f] + 1
+        if dominators[f] == 0 :
+            rank[f] = 0
+            front[0].append(f)
+    
+    #itera buscando os proximos niveis de fronteira
+    i = 0
+    while (front[i] != []) :
+        new_front = []
+        for f in front[i] :
+            for d in dominance[f] :
+                dominators[d] = dominators[d] - 1
+                if (dominators[d] == 0) :
+                    rank[d] = i + 1
+                    new_front.append(d)
+        i = i + 1
+        front.append(new_front)
+
+    del front[len(front)-1]
+    
+    return front
+
+
+def crowding_distance_sort(front, values) :
+
+    '''
+    '''
+
+    pass
+
 def runNSGAII () :
 
     ''' Inicia a configuracao do NSGA-II
@@ -1106,19 +1155,41 @@ def runNSGAII () :
 
     bits = ceil( log2(num_aps) )
     
+    genes = [gera_cromossomo(bits,WIDTH*HEIGHT) for i in range(0,10)]
+    aps_pos = [points_of_ap(bits, HEIGHT, genes[i]) for i in range(0,10)]
+       
+    func_objetivo1 = [function_ap(bits,genes[i]) for i in range(0,10)]
+    func_objetivo2 = [-(evaluate_array(aps_pos[i], len(aps_pos[i]))[0]) for i in range(0,10)]
+    print(func_objetivo1)
+    print(func_objetivo2)
+    
+    result = fast_non_dominated_sort(func_objetivo1,func_objetivo2)
+
+    ap_position = [aps_pos[i] for i in result[0]]
+
+    for i in ap_position :
+        print("\nDesenhando resultado da simulação...")
+        show_solution(i, py_game_display_surf)
+        input('NSGA-II')
+
+    '''
     gene = gera_cromossomo(bits,WIDTH*HEIGHT)
     aps_qtd = bits_to_integer(bits,gene)
     aps_pos = points_of_ap(bits, HEIGHT, gene)
     
     result = evaluate_array(aps_pos, len(aps_pos))
+    
+  
     print(aps_pos)
     print(function_ap(bits,gene))
     print(result[0])
+    
+
     if ANIMATION_STEP_BY_STEP or ANIMATION_BEST_PLACES or ANIMATION_BESTS:
         print("\nDesenhando resultado da simulação...")
         show_solution(aps_pos, py_game_display_surf)
     input('NSGA-II')
-
+    '''
 ########################################################################################################################
 #   Main                                                                                                               #
 ########################################################################################################################
