@@ -1141,12 +1141,42 @@ def fast_non_dominated_sort(function1, function2) :
     return front
 
 
-def crowding_distance_sort(front, values) :
+def sort_by_front(front, values) :
 
-    '''
+    '''Ordena uma lista retornando apenas os valores contidos dentro do front
     '''
 
-    pass
+    sorted_list = []
+    index = []
+    while len(sorted_list) != len(front) :
+        if values.index(min(values)) in front :
+            sorted_list.append(values[values.index(min(values))])
+            index.append(values.index(min(values)))
+        values[values.index(min(values))] = np.inf
+    print(sorted_list)
+
+    return [sorted_list, index]
+
+def crowding_distance_sort(front, values1, values2) :
+
+    '''Ordenacao pelo distanciamento
+    '''
+
+    distance = [0 for i in range(0,len(front))]
+
+    sorted1 = sort_by_front(front, values1[:])
+    sorted2 = sort_by_front(front, values2[:])
+
+    distance[0] = np.inf
+    distance[len(distance)-1] = np.inf
+
+    #Um loop para cada funcao
+    for k in range(1, len(front)-1) :
+        distance[k] = distance[k] + (sorted1[k+1] - sorted1[k-1]) / (max(values1)-min(values1))
+    for k in range(1, len(front)-1) :
+        distance[k] = distance[k] + (sorted2[k+1] - sorted2[k-1]) / (max(values2)-min(values2))
+
+    return distance
 
 def runNSGAII () :
 
@@ -1154,25 +1184,33 @@ def runNSGAII () :
     '''
 
     bits = ceil( log2(num_aps) )
-    
-    genes = [gera_cromossomo(bits,WIDTH*HEIGHT) for i in range(0,10)]
-    aps_pos = [points_of_ap(bits, HEIGHT, genes[i]) for i in range(0,10)]
+    print(bits)
+    genes = [gera_cromossomo(bits,WIDTH*HEIGHT) for i in range(0,20)]
+    aps_pos = [points_of_ap(bits, HEIGHT, genes[i]) for i in range(0,20)]
        
-    func_objetivo1 = [function_ap(bits,genes[i]) for i in range(0,10)]
-    func_objetivo2 = [-(evaluate_array(aps_pos[i], len(aps_pos[i]))[0]) for i in range(0,10)]
-    print(func_objetivo1)
-    print(func_objetivo2)
+    func_objetivo1 = [function_ap(bits,genes[i]) for i in range(0,20)]
+    func_objetivo2 = [-(evaluate_array(aps_pos[i], len(aps_pos[i]))[0]) for i in range(0,20)]
+    
     
     result = fast_non_dominated_sort(func_objetivo1,func_objetivo2)
+    print(result)
+    print(crowding_distance_sort(result[0],func_objetivo1,func_objetivo2))
 
+    print(func_objetivo1)
+    print(func_objetivo2)
+
+    
+    
+
+    '''
     ap_position = [aps_pos[i] for i in result[0]]
-
+    
     for i in ap_position :
         print("\nDesenhando resultado da simulação...")
         show_solution(i, py_game_display_surf)
         input('NSGA-II')
 
-    '''
+
     gene = gera_cromossomo(bits,WIDTH*HEIGHT)
     aps_qtd = bits_to_integer(bits,gene)
     aps_pos = points_of_ap(bits, HEIGHT, gene)
@@ -1229,7 +1267,7 @@ if __name__ == '__main__':
     # pt_dbm = -30
 
     # Quantidade de APs
-    num_aps = 3
+    num_aps = 4
 
     # Constantes para controle da estratégia de posição inicial dos APs
     RANDOM = 0
