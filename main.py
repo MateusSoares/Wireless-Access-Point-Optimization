@@ -1249,7 +1249,8 @@ def create_offspring(bits_ap, solutions, function1, function2, front, distance_v
     '''Gera uma quantidade de solucoes apartir de crossover e mutacoes
     '''
 
-    ponto1_cross = int((len(solutions[0])-bits_ap)/3)
+    #ponto1_cross = int((len(solutions[0])-bits_ap)/3)
+    ponto1_cross = bits_ap+num_aps
     ponto2_cross = int((len(solutions[0])-bits_ap)/(3/2))
 
     offsprings = []
@@ -1276,8 +1277,6 @@ def create_offspring(bits_ap, solutions, function1, function2, front, distance_v
             
     return offsprings
 
-
-    input('primeira geracao')
 def nsgaii(pop_size, max_gen):
     
     '''Implementacao do algoritmo NSGA-II
@@ -1289,7 +1288,7 @@ def nsgaii(pop_size, max_gen):
     bits = ceil( log2(num_aps) )
 
     #probabilidade de mutacao
-    mutation_probality = 0.15
+    mutation_probality = 0.5
 
     #populacao inicial
     solutions = [gera_cromossomo(bits,WIDTH*HEIGHT) for i in range(0,pop_size)]
@@ -1363,17 +1362,23 @@ def runNSGAII () :
 
     ''' Inicia a configuracao do NSGA-II
     '''
-    solucao = nsgaii(5,10)
-    aps_pos = [points_of_ap(3, HEIGHT, solucao[i]) for i in range(0,5)]
+    solucao = nsgaii(100,10)
+    print(solucao[0][:10])
+    print(solucao[10][:10])
+    print(solucao[20][:10])
+    print(solucao[30][:10])
+    print(solucao[40][:10])
+    aps_pos = [points_of_ap(3, HEIGHT, solucao[i]) for i in [0,10,20,30,40]]
     
+    print(aps_pos)
     
     for i in aps_pos :
         print("\nDesenhando resultado da simulação...")
         show_solution(i, py_game_display_surf)
         input('NSGA-II')
-    
-    #show_solution([], py_game_display_surf)
     '''
+    #show_solution([], py_game_display_surf)
+    
     print(tournament_selection(5,[[3,2],[0,1,4]],[[np.inf,np.inf],[5,4,2]]))
 
     
