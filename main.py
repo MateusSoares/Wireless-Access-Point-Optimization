@@ -1062,7 +1062,7 @@ def displacement_mutation(bits_ap, position, lenght, offset, gene):
     return gene_new
     
 
-def bit_flip_mutation(bits_ap, probality, gene):
+def bit_flip_mutation_all(bits_ap, probality, gene):
     
     '''Realiza a inversao de bits por bit de acordo com a probabilidade
         probality = probabilidade de realizar a inversão
@@ -1074,6 +1074,17 @@ def bit_flip_mutation(bits_ap, probality, gene):
             gene_new[i] = (gene_new[i] * -1 ) + 1
 
     gene_new = np.append(gene_new, gene[bits_ap:])
+
+    return gene_new
+
+def bit_flip_mutation(bits_ap, bit_position, gene):
+    
+    '''Realiza a inversao de um bit
+        bit_position = posicao onde havera a inversao
+    '''
+    
+    gene_new = np.array(gene, dtype=np.int64)
+    gene_new[bit_position] = (gene_new[bit_position] * -1 ) + 1
 
     return gene_new
 
@@ -1141,21 +1152,35 @@ def fast_non_dominated_sort(function1, function2) :
     return front
 
 
-def sort_by_front(front, values) :
+def sort_by_values(front, values) :
 
-    '''Ordena uma lista retornando apenas os valores contidos dentro do front
+    '''Ordena o front de acordo com os valores acessados pelos indices disponiveis no front
+        front = lista com indices
+        values = valores usados para ordenacao
+    '''
+
+    index = []
+    while len(index) != len(front) :
+        if values.index(min(values)) in front :
+            index.append(values.index(min(values)))
+        values[values.index(min(values))] = np.inf
+
+    index.reverse()
+
+    return index
+
+def sort_front_by_crowding(front, values) :
+
+    '''Ordena o front recebido de acordo com a ordenacao do crowding distance
     '''
 
     sorted_list = []
-    index = []
     while len(sorted_list) != len(front) :
-        if values.index(min(values)) in front :
-            sorted_list.append(values[values.index(min(values))])
-            index.append(values.index(min(values)))
-        values[values.index(min(values))] = np.inf
-    print(sorted_list)
+        index = values.index(max(values))
+        sorted_list.append(front[index])
+        values[index] = -np.inf
 
-    return [sorted_list, index]
+    return sorted_list
 
 def crowding_distance_sort(front, values1, values2) :
 
@@ -1164,25 +1189,44 @@ def crowding_distance_sort(front, values1, values2) :
 
     distance = [0 for i in range(0,len(front))]
 
-    sorted1 = sort_by_front(front, values1[:])
-    sorted2 = sort_by_front(front, values2[:])
+    #ordena os index do front de acordo com as funcoes objetivo
+    sorted1 = sort_by_values(front, values1[:])
+    sorted2 = sort_by_values(front, values2[:])
 
-    distance[0] = np.inf
-    distance[len(distance)-1] = np.inf
+    print(sorted1)
+    print(sorted2)
 
-    #Um loop para cada funcao
-    for k in range(1, len(front)-1) :
-        distance[k] = distance[k] + (sorted1[k+1] - sorted1[k-1]) / (max(values1)-min(values1))
-    for k in range(1, len(front)-1) :
-        distance[k] = distance[k] + (sorted2[k+1] - sorted2[k-1]) / (max(values2)-min(values2))
+    #Funcao 1 : os extremos sao considerados como distancia infinita
+    distance[front.index(sorted1[0])] = np.inf
+    distance[front.index(sorted1[-1])] = np.inf
+
+    for i in range(1,len(sorted1)-1) :
+        k = front.index(sorted1[i])
+        distance[k] = distance[k] + (values1[sorted1[i+1]] - values1[sorted1[i-1]]) / (max(values1)-min(values1))
+
+    #Funcao 2 : os extremos sao considerados como distancia infinita
+    distance[front.index(sorted2[0])] = np.inf
+    distance[front.index(sorted2[-1])] = np.inf
+
+    for i in range(1,len(sorted2)-1) :
+        k = front.index(sorted2[i])
+        distance[k] = distance[k] + (values2[sorted2[i+1]] - values2[sorted2[i-1]]) / (max(values2)-min(values2))
 
     return distance
+
+def nsgaii(pop_size, max_gen):
+    
+    '''Implementacao do algoritmo NSGA-II
+    '''
 
 def runNSGAII () :
 
     ''' Inicia a configuracao do NSGA-II
     '''
 
+    crow = crowding_distance_sort([1,3,0,2],[0.79,0.31,0.27,0.22,1,0.1],[3.97,6.10,6.93,7.09,60,0])
+    print(sort_front_by_crowding([1,3,0,2], crow))
+    '''
     bits = ceil( log2(num_aps) )
     print(bits)
     genes = [gera_cromossomo(bits,WIDTH*HEIGHT) for i in range(0,20)]
@@ -1202,7 +1246,7 @@ def runNSGAII () :
     
     
 
-    '''
+    
     ap_position = [aps_pos[i] for i in result[0]]
     
     for i in ap_position :
