@@ -1039,7 +1039,7 @@ def reciprocal_exchange_mutation(bits_ap, first_pt, second_pt, gene) :
     aux = gene_new[bits_ap+first_pt]
     gene_new[bits_ap+first_pt] = gene_new[bits_ap+second_pt]
     gene_new[bits_ap+second_pt] = aux 
-    
+
     return gene_new
 
 def displacement_mutation(bits_ap, position, lenght, offset, gene):
@@ -1154,7 +1154,7 @@ def fast_non_dominated_sort(function1, function2) :
 
 def sort_by_values(front, values) :
 
-    '''Ordena o front de acordo com os valores acessados pelos indices disponiveis no front
+    '''Ordena o front de acordo com os valores acessados pelos indices disponiveis no front. Ordem decrescente
         front = lista com indices
         values = valores usados para ordenacao
     '''
@@ -1193,9 +1193,6 @@ def crowding_distance_sort(front, values1, values2) :
     sorted1 = sort_by_values(front, values1[:])
     sorted2 = sort_by_values(front, values2[:])
 
-    print(sorted1)
-    print(sorted2)
-
     #Funcao 1 : os extremos sao considerados como distancia infinita
     distance[front.index(sorted1[0])] = np.inf
     distance[front.index(sorted1[-1])] = np.inf
@@ -1214,19 +1211,175 @@ def crowding_distance_sort(front, values1, values2) :
 
     return distance
 
+def tournament_selection(pop_size, front, distance_values) :
+
+    '''Seleciona dois individuos para realizar o crossover
+        pop_size = quantidade de solucoes
+        front = populacao dividida nos fronts
+        distance_values = valores do crowding distance
+    '''
+
+    #seleciona dois possiveis geradores
+    parent1 = rd.randint(0,pop_size-1)
+    parent2 = rd.randint(0,pop_size-1)
+    while parent2 == parent1 :
+        parent2 = rd.randint(0,pop_size-1)
+
+    #verifica quais os fronts
+    parent1_front = -1
+    parent2_front = -1
+    for i in range(0,len(front)) :
+        if parent1 in front[i] :
+            parent1_front = i
+        if parent2 in front[i] :
+            parent2_front = i
+        if parent1_front != -1 and parent2_front == -1 :
+            return parent1
+        elif parent1_front == -1 and parent2_front != -1 :
+            return parent2
+    
+    #pega o parente que tenha o maior valor de distância
+    if parent1_front == parent2_front : 
+        index = distance_values[parent1_front].index(max(distance_values[parent1_front]))
+        best_parent = front[parent1_front][index]
+        return best_parent
+    
+def create_offspring(bits_ap, solutions, function1, function2, front, distance_values, mutation_probality):
+
+    '''Gera uma quantidade de solucoes apartir de crossover e mutacoes
+    '''
+
+    ponto1_cross = int((len(solutions[0])-bits_ap)/3)
+    ponto2_cross = int((len(solutions[0])-bits_ap)/(3/2))
+
+    offsprings = []
+
+    #Crossover entre duas solucoes
+    while len(offsprings) != len(solutions) :
+        
+        parent1 = solutions[ tournament_selection(len(solutions), front, distance_values) ]
+        parent2 = solutions[ tournament_selection(len(solutions), front, distance_values) ]
+
+        offspring = crossover(bits_ap, rd.randint(0,bits_ap-1), ponto1_cross, ponto2_cross, parent1, parent2)
+
+        offsprings.append(offspring[0])
+        offsprings.append(offspring[1])
+
+    #realizacao de mutacoes
+    for i in range(0,len(offsprings)) :
+        prob = np.random.rand()
+        if prob < mutation_probality :
+            offsprings[i] = bit_flip_mutation(bits_ap, rd.randint(0,bits_ap-2), offsprings[i])
+            offsprings[i] = reciprocal_exchange_mutation(bits_ap, 0, rd.randint(1, len(offsprings[i]-1)), offsprings[i])
+        if bits_to_integer(bits_ap, offsprings[i]) == 0 :
+            offsprings[i][bits_ap-1] = 1
+            
+    return offsprings
+
+
+    input('primeira geracao')
 def nsgaii(pop_size, max_gen):
     
     '''Implementacao do algoritmo NSGA-II
+        pop_size = quantidade de solucoes por geracao
+        max_gen = quantidade máxima de geracoes
     '''
+    
+    #quantidade de bits para alocacao de pontos de acesso
+    bits = ceil( log2(num_aps) )
+
+    #probabilidade de mutacao
+    mutation_probality = 0.15
+
+    #populacao inicial
+    solutions = [gera_cromossomo(bits,WIDTH*HEIGHT) for i in range(0,pop_size)]
+    gen_n = 0
+
+    while gen_n < max_gen :
+        #Funcao objetivo 1
+        func_objetivo1 = [function_ap(bits,solutions[i]) for i in range(0,pop_size)]
+        
+        #Funcao objetivo 2
+        aps_pos = [points_of_ap(bits, HEIGHT, solutions[i]) for i in range(0,pop_size)]
+        func_objetivo2 = [-(evaluate_array(aps_pos[i], len(aps_pos[i]))[0]) for i in range(0,pop_size)] 
+
+        #calculo do front
+        nds_solution = fast_non_dominated_sort(func_objetivo1,func_objetivo2)
+        
+        #calculo crowding distance
+        cd_solution = []
+        for i in range(0,len(nds_solution)) :
+            cd_solution.append(crowding_distance_sort(nds_solution[i], func_objetivo1, func_objetivo2))
+
+        #geracao dos filhos
+        solutions2 = create_offspring(bits, solutions, func_objetivo1, func_objetivo2, nds_solution, cd_solution, mutation_probality)
+        
+        solutions += solutions2
+
+        #Funcao objetivo 1 Qt
+        func_objetivo2_1 = [function_ap(bits,solutions2[i]) for i in range(0,pop_size)]
+
+        #Funcao objetivo 2 Qt
+        aps_pos = [points_of_ap(bits, HEIGHT, solutions2[i]) for i in range(0,pop_size)]
+        func_objetivo2_2 = [-(evaluate_array(aps_pos[i], len(aps_pos[i]))[0]) for i in range(0,pop_size)]
+
+        #concatenacao para gerar Pt+Qt
+        func_objetivo1 += func_objetivo2_1
+        func_objetivo2 += func_objetivo2_2
+        
+        
+        #calculo do front
+        nds_solution = fast_non_dominated_sort(func_objetivo1,func_objetivo2)
+        
+        #calculo crowding distance
+        cd_solution = []
+        for i in range(0,len(nds_solution)) :
+            cd_solution.append(crowding_distance_sort(nds_solution[i], func_objetivo1, func_objetivo2))
+        
+        #nova geracao
+        new_solution = []
+        
+        for i in range(0,len(nds_solution)) :
+            
+            front = nds_solution[i]
+            crowding_dist = cd_solution[i]
+            
+            sorted_front = sort_front_by_crowding(front,crowding_dist)
+            
+            for index in sorted_front :
+                
+                new_solution.append(solutions[index])
+                if len(new_solution) == pop_size :
+                    break
+            if len(new_solution) == pop_size :
+                    break
+
+        solutions = (new_solution)
+        gen_n = gen_n + 1
+
+    return solutions
 
 def runNSGAII () :
 
     ''' Inicia a configuracao do NSGA-II
     '''
+    solucao = nsgaii(5,10)
+    aps_pos = [points_of_ap(3, HEIGHT, solucao[i]) for i in range(0,5)]
+    
+    
+    for i in aps_pos :
+        print("\nDesenhando resultado da simulação...")
+        show_solution(i, py_game_display_surf)
+        input('NSGA-II')
+    
+    #show_solution([], py_game_display_surf)
+    '''
+    print(tournament_selection(5,[[3,2],[0,1,4]],[[np.inf,np.inf],[5,4,2]]))
 
+    
     crow = crowding_distance_sort([1,3,0,2],[0.79,0.31,0.27,0.22,1,0.1],[3.97,6.10,6.93,7.09,60,0])
     print(sort_front_by_crowding([1,3,0,2], crow))
-    '''
+    
     bits = ceil( log2(num_aps) )
     print(bits)
     genes = [gera_cromossomo(bits,WIDTH*HEIGHT) for i in range(0,20)]
@@ -1311,7 +1464,7 @@ if __name__ == '__main__':
     # pt_dbm = -30
 
     # Quantidade de APs
-    num_aps = 4
+    num_aps = 5
 
     # Constantes para controle da estratégia de posição inicial dos APs
     RANDOM = 0
