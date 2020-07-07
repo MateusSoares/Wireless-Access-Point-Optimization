@@ -1347,7 +1347,16 @@ def nsgaii(pop_size, max_gen):
             
             for index in sorted_front :
                 
-                new_solution.append(solutions[index])
+                #verifica se existe uma solução identica no novo vetor de solução
+                
+                flag = True 
+                for i in new_solution :
+                    if (solutions[index][:bits+num_aps] == i[:bits+num_aps]).all() :
+                        flag = False
+                
+                if flag :
+                    new_solution.append(solutions[index])               
+                
                 if len(new_solution) == pop_size :
                     break
             if len(new_solution) == pop_size :
@@ -1362,13 +1371,13 @@ def runNSGAII () :
 
     ''' Inicia a configuracao do NSGA-II
     '''
-    solucao = nsgaii(100,10)
+    solucao = nsgaii(10,200)
     print(solucao[0][:10])
-    print(solucao[10][:10])
-    print(solucao[20][:10])
-    print(solucao[30][:10])
-    print(solucao[40][:10])
-    aps_pos = [points_of_ap(3, HEIGHT, solucao[i]) for i in [0,10,20,30,40]]
+    print(solucao[1][:10])
+    print(solucao[2][:10])
+    print(solucao[3][:10])
+    print(solucao[4][:10])
+    aps_pos = [points_of_ap(3, HEIGHT, solucao[i]) for i in [0,1,2,3,4]]
     
     print(aps_pos)
     
